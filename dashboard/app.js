@@ -47,6 +47,8 @@ function saveKey(value) {try {window.localStorage.setItem(storageKey,value); ret
 function forgetKey() {try {window.localStorage.removeItem(storageKey)} catch { /* Storage may be disabled. */ }}
 function disconnectedState(message) {
   currentRows=null;render([],false);
+  $('#source-strip').hidden=false;
+  $('#connection-status').textContent='';
   $('#source-title').textContent='Live data not connected';
   $('#source-detail').textContent=message;
   $('#footer-source').textContent='NO DATA CONNECTED';
@@ -82,12 +84,15 @@ async function refreshLive() {
     $('#footer-source').textContent='LIVE / RECORDED RUNS';
     $('#signal').classList.add('loaded');
     const saved = rememberAfterSuccess ? saveKey(accessKey) : false;
-    if (rememberAfterSuccess && !saved) $('#source-detail').textContent='Connected. Browser storage is unavailable, so you may need to sign in again.';
+    $('#connection-status').textContent=rememberAfterSuccess && !saved ? 'Connected · this browser cannot remember your sign-in' : 'Connected · refreshes every minute';
+    $('#source-strip').hidden=true;
     $('#connect-form').hidden=true;
     $('#disconnect').hidden=false;
   } catch(error) {
     if (requestGeneration !== generation) return;
     currentRows=null;render([],false);
+    $('#source-strip').hidden=false;
+    $('#connection-status').textContent='';
     $('#source-title').textContent='Connection unavailable';
     $('#source-detail').textContent=error.message;
     $('#footer-source').textContent='NO DATA CONNECTED';

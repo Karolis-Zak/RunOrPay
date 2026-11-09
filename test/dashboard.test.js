@@ -81,11 +81,16 @@ test('a successful sign-in can be remembered, restored and signed out on this br
   first.elements['#connect-form'].handler({preventDefault(){}});
   await settle();
   assert.equal(storage.get('run-or-pay.dashboard-key.v1'),'correct-key');
+  assert.equal(first.elements['#source-strip'].hidden,true);
+  assert.equal(first.elements['#connect-form'].hidden,true);
   const reopened=build();
   await settle();
   assert.equal(reopened.elements['#source-title'].textContent,'Connected');
+  assert.equal(reopened.elements['#source-strip'].hidden,true);
   reopened.elements['#disconnect'].handler();
   assert.equal(storage.size,0);
+  assert.equal(reopened.elements['#source-strip'].hidden,false);
+  assert.equal(reopened.elements['#connect-form'].hidden,false);
   assert.equal(reopened.elements['#source-title'].textContent,'Live data not connected');
 });
 
@@ -102,4 +107,16 @@ test('signing out during a request does not restore access when that request fin
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(storage.size,0);
   assert.equal(elements['#source-title'].textContent,'Live data not connected');
+});
+
+test('a rejected remembered key is removed and the sign-in banner reappears', async () => {
+  const elements={}, storage=new Map([['run-or-pay.dashboard-key.v1','expired']]);
+  const localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
+  const document={querySelector(selector){return elements[selector]??={innerHTML:'',textContent:'',hidden:true,value:'',checked:true,classList:{add(){},remove(){}},addEventListener(_name,handler){this.handler=handler}};}};
+  vm.runInNewContext(readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8'),{document,window:{RUN_OR_PAY_API_URL:'https://example.test/dashboard/runs',localStorage},URL,Intl,Date,Number,String,Array,Math,JSON,Error,AbortSignal,setInterval(){},fetch:async()=>({ok:false,status:401})});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(storage.size,0);
+  assert.equal(elements['#source-strip'].hidden,false);
+  assert.equal(elements['#connect-form'].hidden,false);
+  assert.match(elements['#source-detail'].textContent,/not accepted/);
 });
