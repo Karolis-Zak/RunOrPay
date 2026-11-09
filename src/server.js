@@ -3,12 +3,19 @@ import {timingSafeEqual} from 'node:crypto';
 import {openDatabase} from './sqlite-binding.js';
 import worker from './worker.js';
 
-const {ADMIN_SECRET, KAROLIS_INGEST_SECRET, LORENAS_INGEST_SECRET} = process.env;
+const {ADMIN_SECRET, KAROLIS_INGEST_SECRET, LORENAS_INGEST_SECRET, DASHBOARD_READ_SECRET, DASHBOARD_ALLOWED_ORIGIN} = process.env;
 if (![ADMIN_SECRET, KAROLIS_INGEST_SECRET, LORENAS_INGEST_SECRET].every(x => typeof x === 'string' && x.length >= 32)) throw new Error('Three distinct secrets of at least 32 characters are required');
 if (new Set([ADMIN_SECRET, KAROLIS_INGEST_SECRET, LORENAS_INGEST_SECRET]).size !== 3) throw new Error('Secrets must be distinct');
+if (DASHBOARD_READ_SECRET && (DASHBOARD_READ_SECRET.length < 32 || [ADMIN_SECRET,KAROLIS_INGEST_SECRET,LORENAS_INGEST_SECRET].includes(DASHBOARD_READ_SECRET))) throw new Error('Dashboard secret must be distinct and at least 32 characters');
+if (Boolean(DASHBOARD_READ_SECRET) !== Boolean(DASHBOARD_ALLOWED_ORIGIN)) throw new Error('Dashboard secret and allowed origin must be configured together');
+if (DASHBOARD_ALLOWED_ORIGIN) {
+  let origin;
+  try {origin = new URL(DASHBOARD_ALLOWED_ORIGIN);} catch {throw new Error('Invalid dashboard origin');}
+  if (origin.protocol !== 'https:' || origin.origin !== DASHBOARD_ALLOWED_ORIGIN || origin.username || origin.password) throw new Error('Dashboard origin must be an exact HTTPS origin');
+}
 crypto.subtle.timingSafeEqual = (a,b) => timingSafeEqual(Buffer.from(a),Buffer.from(b));
 const DB = openDatabase(process.env.DB_PATH || './run-or-pay.sqlite');
-const env = {DB, ADMIN_SECRET, KAROLIS_INGEST_SECRET, LORENAS_INGEST_SECRET};
+const env = {DB, ADMIN_SECRET, KAROLIS_INGEST_SECRET, LORENAS_INGEST_SECRET, DASHBOARD_READ_SECRET, DASHBOARD_ALLOWED_ORIGIN};
 const port = Number(process.env.PORT || 8787);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
 

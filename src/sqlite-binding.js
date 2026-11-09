@@ -6,6 +6,8 @@ export function openDatabase(path) {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
   db.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
+  const columns = db.prepare('PRAGMA table_info(activities)').all();
+  if (!columns.some(column => column.name === 'moving_time')) db.exec('ALTER TABLE activities ADD COLUMN moving_time TEXT');
   return {
     prepare(sql) {
       function bind(...args) {
