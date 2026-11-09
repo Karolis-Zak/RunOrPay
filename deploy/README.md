@@ -1,3 +1,5 @@
+> Historical deployment draft: paths and infrastructure below are examples, not a statement of the current Oracle configuration. See the root README for the current architecture and verification requirements.
+
 # Free server deployment preparation
 
 This is a deployment draft, not a deployed service. Oracle Always Free is a candidate; account creation normally requires card identity verification and compute capacity is not guaranteed. Do not upgrade to a paid account or provision resources outside Always Free. The user must separately and explicitly confirm an identified deployment before deployment. Never push to GitHub without separate confirmation.
