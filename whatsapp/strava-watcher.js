@@ -1,6 +1,5 @@
 import puppeteer from 'puppeteer';
 import {parseActivityDetails} from './strava-parse.js';
-import {challengePeriod} from '../src/challenge.js';
 import {validateServiceUrl} from './service-url.js';
 
 const {CHALLENGE_URL, KAROLIS_INGEST_SECRET, LORENAS_INGEST_SECRET, STRAVA_SESSION_PATH, STRAVA_LOGIN} = process.env;
@@ -48,7 +47,6 @@ try {
       if (!parsed) throw new Error(`${profile.runner}: run details are incomplete or unavailable`);
       // Noon is an internal calendar-date anchor, not the actual start time.
       const activity = {id:card.id, startedAt:`${parsed.date}T12:00:00Z`, metres:parsed.metres, movingTime:parsed.movingTime};
-      if (!challengePeriod(activity.startedAt)) continue;
       const response = await fetch(new URL(`/ingest/${profile.runner}`, CHALLENGE_URL), {method:'POST',headers:{Authorization:`Bearer ${profile.secret}`,'Content-Type':'application/json'},body:JSON.stringify(activity),signal:AbortSignal.timeout(15000),redirect:'error'});
       if (!response.ok) throw new Error(`${profile.runner}: intake returned HTTP ${response.status}`);
       accepted++;

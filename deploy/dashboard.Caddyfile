@@ -1,0 +1,14 @@
+# Draft only. The instance's public IP is ephemeral; verify it and port 80/443
+# before using this candidate hostname. Never replace an existing Caddyfile.
+150-230-126-166.sslip.io {
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+    handle /dashboard/runs {
+        reverse_proxy 127.0.0.1:8787
+    }
+    handle {
+        respond 404
+    }
+}

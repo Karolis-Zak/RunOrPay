@@ -4,6 +4,8 @@ node_modules/
 .dev.vars
 .env*
 .test-env
+.dashboard-env
+backups/
 *.log
 *.sqlite*
 .whatsapp-session/

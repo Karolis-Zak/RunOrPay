@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS activities (
   started_at TEXT NOT NULL,
   metres INTEGER NOT NULL CHECK (metres >= 0),
   updated_at TEXT NOT NULL,
+  moving_time TEXT,
   PRIMARY KEY (runner, source_id)
 );
 CREATE TABLE IF NOT EXISTS notifications (

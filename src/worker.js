@@ -22,11 +22,14 @@ async function readActivities(env) {
 }
 
 async function saveActivity(env, runner, body) {
-  const existing = await env.DB.prepare('SELECT started_at, metres FROM activities WHERE runner=? AND source_id=?').bind(runner, body.id).first();
+  const existing = await env.DB.prepare('SELECT started_at, metres, moving_time FROM activities WHERE runner=? AND source_id=?').bind(runner, body.id).first();
   const now = new Date().toISOString();
-  await env.DB.prepare('INSERT INTO activities (runner, source_id, started_at, metres, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(runner, source_id) DO UPDATE SET started_at=excluded.started_at, metres=excluded.metres, updated_at=excluded.updated_at').bind(runner, body.id, body.startedAt, body.metres, now).run();
-  const changed = !existing || existing.metres !== body.metres || existing.started_at !== body.startedAt;
+  await env.DB.prepare('INSERT INTO activities (runner, source_id, started_at, metres, updated_at, moving_time) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(runner, source_id) DO UPDATE SET started_at=excluded.started_at, metres=excluded.metres, updated_at=excluded.updated_at, moving_time=COALESCE(excluded.moving_time, activities.moving_time)').bind(runner, body.id, body.startedAt, body.metres, now, body.movingTime ?? null).run();
+  const changed = !existing || existing.metres !== body.metres || existing.started_at !== body.startedAt || (body.movingTime != null && existing.moving_time !== body.movingTime);
   if (existing && changed) await env.DB.prepare('DELETE FROM notifications WHERE id=? AND sent_at IS NULL').bind(`activity:${runner}:${body.id}`).run();
+  // Retain observed runs outside the challenge for lifetime stats, without
+  // announcing a weekly result or changing the agreed challenge period.
+  if (!challengePeriod(body.startedAt)) return changed;
   // Recreate a missing outbox entry after an interrupted write. Existing sent
   // and claimed entries remain protected by the notification primary key.
   {
@@ -47,7 +50,6 @@ async function ingest(request, env, runner) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({error:'Invalid normalized activity'}, 400);
   if (body.movingTime !== undefined && (typeof body.movingTime !== 'string' || !/^(?:\d{1,3}:\d{2}(?::\d{2})?|\d{1,5}s)$/.test(body.movingTime))) return json({error:'Invalid moving time'}, 400);
   if (typeof body.id !== 'string' || body.id.length < 1 || body.id.length > 200 || !Number.isSafeInteger(body.metres) || body.metres < 0 || body.metres > 1000000 || typeof body.startedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(body.startedAt) || !Number.isFinite(Date.parse(body.startedAt))) return json({error:'Invalid normalized activity'}, 400);
-  if (!challengePeriod(body.startedAt)) return json({error:'Activity outside challenge'}, 400);
   return json({ok:true, changed:await saveActivity(env, runner, body)});
 }
 
@@ -91,6 +93,7 @@ async function healthSync(request, env) {
 async function handle(request, env) {
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return json({ok:true});
+  if (url.pathname === '/dashboard/runs') return dashboardRuns(request, env);
   if (url.pathname === '/api/apple-health/sync' && request.method === 'POST') return healthSync(request, env);
   if (url.pathname === '/health-export/karolis' && request.method === 'POST') return healthExport(request, env);
   const match = url.pathname.match(/^\/ingest\/(Karolis|Lorenas)$/);
@@ -133,6 +136,20 @@ async function handle(request, env) {
     return json({ok:true});
   }
   return json({error:'Not found'}, 404);
+}
+
+async function dashboardRuns(request, env) {
+  // Disabled unless explicitly configured. Browser access is limited to one
+  // configured origin; CORS is not a substitute for the separate read secret.
+  const origin = request.headers.get('Origin');
+  const allowed = env.DASHBOARD_ALLOWED_ORIGIN;
+  if (!env.DASHBOARD_READ_SECRET || env.DASHBOARD_READ_SECRET.length < 32 || !allowed || !origin || origin !== allowed) return json({error:'Unavailable'}, 403);
+  const cors = {'Access-Control-Allow-Origin':allowed,'Vary':'Origin','Cache-Control':'no-store'};
+  if (request.method === 'OPTIONS') return new Response(null,{status:204,headers:{...cors,'Access-Control-Allow-Methods':'GET, OPTIONS','Access-Control-Allow-Headers':'Authorization'}});
+  if (request.method !== 'GET') return Response.json({error:'Method not allowed'},{status:405,headers:cors});
+  if (!await authorized(request,env.DASHBOARD_READ_SECRET)) return Response.json({error:'Unauthorized'},{status:401,headers:cors});
+  const {results} = await env.DB.prepare('SELECT runner, started_at, metres, moving_time FROM activities ORDER BY started_at DESC LIMIT 2001').all();
+  return Response.json({runs:results.slice(0,2000),truncated:results.length>2000,coverage:'unverified'}, {headers:cors});
 }
 
 export default {
