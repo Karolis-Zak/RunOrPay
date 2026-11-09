@@ -1,0 +1,7 @@
+{
+  "name": "run-or-pay",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "run-or-pay", "database_id": "REPLACE_WITH_DATABASE_ID" }]
+}

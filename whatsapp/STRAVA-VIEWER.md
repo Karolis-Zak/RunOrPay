@@ -1,0 +1,9 @@
+# Experimental Strava profile watcher
+
+This approach needs no additional phone app. It uses an authenticated Strava browser profile on an always-on server and is an experimental implementation, not a verified Strava integration. Automated access is prohibited by Strava's terms and may lead to restrictions; site or login changes may stop it. Never share or commit the persistent browser session. Do not bypass a CAPTCHA, login challenge or privacy setting.
+
+Install dependencies and a compatible Chromium browser. Set `STRAVA_SESSION_PATH` to a private persistent directory. Run `STRAVA_LOGIN=1 node strava-watcher.js` in an interactive graphical browser session and complete login yourself; no credentials are passed as code or environment variables. If the account cannot see both profiles, the watcher cannot see them either. Close the browser after login. A headless-only server needs a separately secured interactive login mechanism, which has not yet been built. A browser session is a credential: keep it encrypted and private.
+
+The scheduled watcher requires `CHALLENGE_URL`, `KAROLIS_INGEST_SECRET`, `LORENAS_INGEST_SECRET` and `STRAVA_SESSION_PATH`; `CHALLENGE_URL` must use HTTPS. Run `node strava-watcher.js` on a scheduler. The default Chrome sandbox is enabled; `CHROMIUM_NO_SANDBOX=1` weakens security and requires a separate security decision.
+
+The DOM selectors and parser are based on conservative candidate structures, not authenticated profile observations. This is not ready for live use: activity card markup, date accuracy, source visibility, distance precision and pagination need verification. It does not establish feed completeness, detect edits/deletions, handle login expiry automatically, or finalize weeks. A run that appears outside the observed cards is missed. Empty or unknown markup causes an error, never a failed-week result. Never assess penalties from this watcher until these gaps are closed and tested.

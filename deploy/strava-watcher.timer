@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Strava profiles every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=15min
+Unit=strava-watcher.service
+
+[Install]
+WantedBy=timers.target

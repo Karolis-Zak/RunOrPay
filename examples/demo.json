@@ -1,0 +1,9 @@
+{
+  "date": "2026-11-15T12:00:00Z",
+  "verified": { "Karolis": true, "Lorenas": true },
+  "activities": [
+    { "runner": "Karolis", "id": "demo-1", "startedAt": "2026-11-10T12:00:00Z", "metres": 3200 },
+    { "runner": "Karolis", "id": "demo-2", "startedAt": "2026-11-14T12:00:00Z", "metres": 6800 },
+    { "runner": "Lorenas", "id": "demo-3", "startedAt": "2026-11-12T12:00:00Z", "metres": 3000 }
+  ]
+}
