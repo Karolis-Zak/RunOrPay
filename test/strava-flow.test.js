@@ -19,6 +19,9 @@ test('a recognised run queues one message with duration and weekly target', asyn
     await DB.prepare('DELETE FROM notifications WHERE id=?').bind('activity:Karolis:101').run();
     assert.equal((await send('Karolis','karolis-secret','101')).status, 200);
     assert.equal((await send('Lorenas','lorenas-secret','102')).status, 200);
+    const afterChallenge = await worker.fetch(new Request('http://localhost/ingest/Karolis',{method:'POST',headers:{Authorization:'Bearer karolis-secret','Content-Type':'application/json'},body:JSON.stringify({id:'103',metres:1000,startedAt:'2027-01-01T12:00:00Z',movingTime:'10:00'})}),env);
+    assert.equal(afterChallenge.status,200);
+    assert.equal((await DB.prepare('SELECT metres FROM activities WHERE source_id=?').bind('103').first()).metres,1000);
     const response = await worker.fetch(new Request('http://localhost/notifications?pending=1',{headers:{Authorization:'Bearer admin-secret'}}),env);
     const {notifications} = await response.json();
     assert.equal(notifications.length, 2);

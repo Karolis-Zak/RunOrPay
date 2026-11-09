@@ -27,6 +27,9 @@ async function saveActivity(env, runner, body) {
   await env.DB.prepare('INSERT INTO activities (runner, source_id, started_at, metres, updated_at, moving_time) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(runner, source_id) DO UPDATE SET started_at=excluded.started_at, metres=excluded.metres, updated_at=excluded.updated_at, moving_time=COALESCE(excluded.moving_time, activities.moving_time)').bind(runner, body.id, body.startedAt, body.metres, now, body.movingTime ?? null).run();
   const changed = !existing || existing.metres !== body.metres || existing.started_at !== body.startedAt || (body.movingTime != null && existing.moving_time !== body.movingTime);
   if (existing && changed) await env.DB.prepare('DELETE FROM notifications WHERE id=? AND sent_at IS NULL').bind(`activity:${runner}:${body.id}`).run();
+  // Retain observed runs outside the challenge for lifetime stats, without
+  // announcing a weekly result or changing the agreed challenge period.
+  if (!challengePeriod(body.startedAt)) return changed;
   // Recreate a missing outbox entry after an interrupted write. Existing sent
   // and claimed entries remain protected by the notification primary key.
   {
@@ -47,7 +50,6 @@ async function ingest(request, env, runner) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({error:'Invalid normalized activity'}, 400);
   if (body.movingTime !== undefined && (typeof body.movingTime !== 'string' || !/^(?:\d{1,3}:\d{2}(?::\d{2})?|\d{1,5}s)$/.test(body.movingTime))) return json({error:'Invalid moving time'}, 400);
   if (typeof body.id !== 'string' || body.id.length < 1 || body.id.length > 200 || !Number.isSafeInteger(body.metres) || body.metres < 0 || body.metres > 1000000 || typeof body.startedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(body.startedAt) || !Number.isFinite(Date.parse(body.startedAt))) return json({error:'Invalid normalized activity'}, 400);
-  if (!challengePeriod(body.startedAt)) return json({error:'Activity outside challenge'}, 400);
   return json({ok:true, changed:await saveActivity(env, runner, body)});
 }
 
