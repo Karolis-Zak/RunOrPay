@@ -1,0 +1,22 @@
+[Unit]
+Description=Run or Pay WhatsApp bridge
+After=network-online.target run-or-pay.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=runorpay
+Group=runorpay
+WorkingDirectory=/opt/run-or-pay/whatsapp
+EnvironmentFile=/etc/run-or-pay/whatsapp.env
+ExecStart=/usr/bin/node /opt/run-or-pay/whatsapp/bridge.js
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/run-or-pay
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Run or Pay Strava profile check
+After=network-online.target run-or-pay.service
+
+[Service]
+Type=oneshot
+User=runorpay
+Group=runorpay
+WorkingDirectory=/opt/run-or-pay/whatsapp
+EnvironmentFile=/etc/run-or-pay/strava.env
+ExecStart=/usr/bin/node /opt/run-or-pay/whatsapp/strava-watcher.js
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/run-or-pay

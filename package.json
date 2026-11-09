@@ -1,0 +1,1 @@
+{"name":"run-or-pay","private":true,"type":"module","scripts":{"test":"node --test"}}
