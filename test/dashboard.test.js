@@ -141,3 +141,14 @@ test('a rejected remembered key is removed and the sign-in banner reappears', as
   assert.equal(elements['#connect-form'].hidden,false);
   assert.match(elements['#source-detail'].textContent,/not accepted/);
 });
+
+test('connection works when AbortSignal.timeout is unavailable', async () => {
+  const elements={}; let requestSignal;
+  const document={querySelector(selector){return elements[selector]??={innerHTML:'',textContent:'',hidden:false,value:'',checked:false,classList:{add(){},remove(){}},addEventListener(_name,handler){this.handler=handler}};}};
+  vm.runInNewContext(readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8'),{document,window:{RUN_OR_PAY_API_URL:'https://example.test/dashboard/runs'},URL,Intl,Date,Number,String,Array,Math,JSON,Error,AbortController,setTimeout,clearTimeout,setInterval(){},fetch:async (_url,options)=>{requestSignal=options.signal;return {ok:true,status:200,json:async()=>({runs:[],truncated:false})};}});
+  document.querySelector('#access-key').value='key';
+  elements['#connect-form'].handler({preventDefault(){}});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(elements['#source-title'].textContent,'Connected');
+  assert.ok(requestSignal);
+});

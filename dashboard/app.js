@@ -75,8 +75,10 @@ async function refreshLive() {
   if (!endpoint || !accessKey || refreshing) return;
   refreshing = true;
   const requestGeneration = generation;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(),15000) : null;
   try {
-    const response = await fetch(endpoint,{headers:{Authorization:`Bearer ${accessKey}`},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)});
+    const response = await fetch(endpoint,{headers:{Authorization:`Bearer ${accessKey}`},cache:'no-store',redirect:'error',...(controller ? {signal:controller.signal} : {})});
     if (requestGeneration !== generation) return;
     if (response.status === 401) {accessKey='';forgetKey();throw Error('Access key not accepted.');}
     if (!response.ok) throw Error('Could not reach the dashboard data.');
@@ -112,7 +114,7 @@ async function refreshLive() {
     $('#signal').classList.remove('loaded');
     $('#retry').hidden=!accessKey;
     if (!accessKey) {$('#connect-form').hidden=false;$('#disconnect').hidden=true;}
-  } finally {refreshing=false;if(requestGeneration !== generation && accessKey) refreshLive();}
+  } finally {if (timeout !== null) clearTimeout(timeout);refreshing=false;if(requestGeneration !== generation && accessKey) refreshLive();}
 }
 if (endpoint) {
   $('#connect-form').addEventListener('submit',event=>{event.preventDefault();generation++;accessKey=$('#access-key').value;rememberAfterSuccess=$('#remember-device').checked;forgetKey();$('#access-key').value='';refreshLive();});
