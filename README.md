@@ -1,13 +1,23 @@
 # Run or Pay
 
-A two-person running challenge. The existing Oracle server checks visible Strava runs and sends updates to a WhatsApp group. The dashboard in `dashboard/` is being developed to show the recorded runs; the current public website is not yet connected to live Oracle data.
+A two-person running challenge: Karolis has a 10 km weekly target and Lorenas has a 5 km target. Weeks run Monday to Sunday in Europe/London. The currently configured challenge period is 9 November–31 December 2026; changing that period or the challenge rules requires agreement.
 
-- Karolis: 10 km per London week; Lorenas: 5 km.
-- The currently configured challenge runs from 9 November through 31 December 2026. Confirm before changing those dates.
-- The development watcher retains observed runs outside that challenge for recorded lifetime distance. Weekly challenge notifications and £50 outcomes remain limited to the configured period; this change is not automatically live.
-- The bot can only record activities it discovers and can view; it does not establish complete Strava history. The website must not assume missing runs mean no runs.
-- Strava is read through the existing browser-based watcher, not the Strava API.
+## How it works
 
-Run `npm test` from this directory to check the local code. The dashboard can be opened locally using `dashboard/index.html`, but its live connection requires separately configured HTTPS, server settings and deployment.
+The existing Strava watcher uses a signed-in Chromium session to inspect visible profile activities. It sends recognised runs to the challenge service on the Oracle VM. The Node service stores activities and notification state in SQLite; a separate WhatsApp bridge sends queued messages. A systemd timer runs the watcher. The dashboard is a static GitHub Pages site that polls a protected read-only HTTPS endpoint and calculates weekly progress and recorded overall distance from its response.
 
-Read [the implementation guide](IMPLEMENTATION-GUIDE.md), [the data audit](DASHBOARD-PLAN.md), and [the dashboard connection plan](DASHBOARD-CONNECTION.md) before changing the live system. Do not commit credentials, session files, databases or private snapshots.
+The user's previous checks showed the Oracle services and a 15-minute watcher timer active, and the dashboard connected to recorded runs. These are observations, not a current health check: the deployed server, timer, session and data coverage must be verified in their own environment. This repository may contain changes that are not live.
+
+The watcher only records activities it can see and discover. It does not verify complete Strava history and may miss older runs, corrections or deletions. The current API returns at most 2,000 runs and flags truncation; the dashboard refuses to calculate partial totals. The server code in this checkout retains observed runs outside the challenge period, but this behaviour must be deployed separately before assuming it exists on the server. Challenge messages and scoring remain restricted to the configured period.
+
+## Develop and test
+
+Use Node.js 24 or later with SQLite support. Run `npm test` from the repository root. Serve the `dashboard/` directory with a local static server to inspect the interface; the configured live API allows only its configured origin, so a local preview is not automatically authenticated. Never commit a real snapshot, database, session directory, token or environment file.
+
+The dashboard polls every minute while connected. It can remember the shared read key in browser local storage only when the user selects that option. Other scripts hosted on the same origin can access that key; use a trusted device and sign out to remove it. A shared key is not a personal account and should be rotated if exposed.
+
+## Deployment and operations
+
+GitHub Pages publishes `dashboard/` using `.github/workflows/pages.yml` when `production` is pushed. The Oracle service, SQLite data, watcher and WhatsApp bridge are separate and are not updated by that workflow. Deploy server changes only after reviewing the exact files, backup and rollback approach, migrations, service health and the required separate authorisation. Update version suffixes on changed dashboard CSS or JavaScript so browsers do not mix incompatible assets.
+
+The dashboard endpoint requires a separate read secret and an exact permitted Origin. CORS is not authentication. Keep the Node listener private and expose only the intended HTTPS read route. The setup has not been independently audited for rate limiting or reliable automated failure alerts. See [dashboard connection notes](DASHBOARD-CONNECTION.md) and [implementation guide](IMPLEMENTATION-GUIDE.md) for context; older planning documents describe proposals and may not reflect the running deployment.

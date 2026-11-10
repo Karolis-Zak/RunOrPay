@@ -1,5 +1,4 @@
-// This local prototype only displays records supplied by the user. It does not
-// connect to Oracle and never substitutes example values for missing data.
+// The dashboard displays only validated records returned by the configured API.
 const runners = [{name:'Karolis',goal:10000,number:'01'}, {name:'Lorenas',goal:5000,number:'02'}];
 const $ = s => document.querySelector(s);
 const escapeHtml = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -22,21 +21,25 @@ function render(rows, loaded) {
   const valid = loaded ? rows.map((r)=>({runner:r.runner, day:londonDay(r.started_at), metres:r.metres, movingTime:r.moving_time})).sort((a,b)=>b.day.localeCompare(a.day)) : [];
   const week = valid.filter(r=>r.day>=weekStart && r.day<=weekEnd);
   const totals = runners.map(r=>({...r,metres:week.filter(x=>x.runner===r.name).reduce((sum,x)=>sum+x.metres,0)}));
-  $('#runner-cards').innerHTML = totals.map((r,i)=>{const pct=loaded ? percent(r.metres,r.goal) : null, left=loaded?Math.max(0,r.goal-r.metres):null;return `<article class="runner-card ${i?'runner-two':'runner-one'}"><div class="card-top"><span class="card-index">ATHLETE / ${r.number}</span><span class="card-goal">WEEKLY GOAL <strong>${km(r.goal)} KM</strong></span></div><div class="runner-name"><span class="runner-avatar">${r.name[0]}</span><div><small>ON THE BOARD</small><h3>${r.name}</h3></div></div><div class="metric"><strong>${loaded?km(r.metres):'—'}</strong><span> / ${km(r.goal)} <b>KM</b></span></div><div class="track" role="progressbar" aria-label="${r.name} weekly goal" aria-valuemin="0" aria-valuemax="100" ${loaded?`aria-valuenow="${Math.min(pct,100)}"`:'aria-valuetext="Data unavailable"'}><span style="width:${loaded?Math.min(pct,100):0}%"></span></div><div class="card-bottom"><span>${loaded?pct+'% COMPLETE':'AWAITING DATA'}</span><strong>${loaded?km(left)+' KM LEFT':'— KM LEFT'}</strong></div></article>`}).join('');
-  if (!loaded) $('#leaderboard').innerHTML='<div class="empty-leader"><span>↗</span><div><strong>Ready when you are.</strong><small>Standings appear when run data is connected.</small></div></div>';
-  else {const ranked=runners.map(r=>({...r,metres:valid.filter(x=>x.runner===r.name).reduce((sum,x)=>sum+x.metres,0)})).sort((a,b)=>b.metres-a.metres), tie=ranked[0].metres===ranked[1].metres; $('#leaderboard').innerHTML=ranked.map((r,i)=>`<div class="rank"><span class="rank-number">${tie?'—':String(i+1).padStart(2,'0')}</span><span class="rank-name"><strong>${r.name}</strong><small>Recorded by the bot</small></span><strong class="rank-score">${km(r.metres)}<small> km</small></strong></div>`).join('');}
-  const daily=Array.from({length:7},(_,i)=>week.filter(r=>r.day===dayShift(weekStart,i)).reduce((s,r)=>s+r.metres,0)); const max=Math.max(...daily,1);
-  $('#week-chart').innerHTML=daily.map((n,i)=>`<div class="chart-day"><span class="chart-value">${loaded?km(n):'—'}</span><div class="bar-well"><span style="height:${loaded?Math.max(n/max*100,n?4:0):0}%"></span></div><small>${['M','T','W','T','F','S','S'][i]}</small></div>`).join('');
-  $('#combined').innerHTML=`${loaded?km(daily.reduce((a,b)=>a+b,0)):'—'} <small>KM</small>`;
-  $('#chart-note').textContent=loaded?'Recorded runs only':'Waiting for data';
+  const comparison = totals[0].metres * totals[1].goal - totals[1].metres * totals[0].goal;
+  $('#weekly-summary').textContent = !loaded ? 'Progress towards each personal goal' : comparison === 0 ? 'Level on weekly goal progress' : `${comparison > 0 ? totals[0].name : totals[1].name} leads on weekly goal progress`;
+  $('#runner-cards').innerHTML = totals.map((r,i)=>{const pct=loaded ? percent(r.metres,r.goal) : null, left=loaded?Math.max(0,r.goal-r.metres):null;return `<article class="runner-card ${i?'runner-two':'runner-one'}"><div class="card-top"><span class="card-index">ATHLETE / ${r.number}</span><span class="card-goal">WEEKLY GOAL <strong>${km(r.goal)} KM</strong></span></div><div class="runner-name"><span class="runner-avatar">${r.name[0]}</span><div><small>ON THE BOARD</small><h3>${r.name}</h3></div></div><div class="metric"><strong class="${loaded?'':'metric-empty'}">${loaded?km(r.metres):'Not connected'}</strong><span> / ${km(r.goal)} <b>KM</b></span></div><div class="track" role="progressbar" aria-label="${r.name} weekly goal" aria-valuemin="0" aria-valuemax="100" ${loaded?`aria-valuenow="${Math.min(pct,100)}"`:'aria-valuetext="Data unavailable"'}><span style="width:${loaded?Math.min(pct,100):0}%"></span></div><div class="card-bottom"><span>${loaded?pct+'% COMPLETE':'AWAITING DATA'}</span><strong>${loaded?km(left)+' KM LEFT':'— KM LEFT'}</strong></div></article>`}).join('');
+  if (!loaded) $('#leaderboard').innerHTML='<div class="empty-leader"><div><strong>No data connected</strong><small>Connect above to see overall distance.</small></div></div>';
+  else {const ranked=runners.map(r=>({...r,metres:valid.filter(x=>x.runner===r.name).reduce((sum,x)=>sum+x.metres,0)})).sort((a,b)=>b.metres-a.metres), tie=ranked[0].metres===ranked[1].metres; $('#leaderboard').innerHTML=ranked.map((r,i)=>`<div class="rank"><span class="rank-number">${tie?'—':String(i+1).padStart(2,'0')}</span><span class="rank-name"><strong>${r.name}</strong></span><strong class="rank-score">${km(r.metres)}<small> km</small></strong></div>`).join('');}
+  const daily=Array.from({length:7},(_,i)=>{const date=dayShift(weekStart,i);return runners.map(r=>week.filter(x=>x.day===date && x.runner===r.name).reduce((sum,x)=>sum+x.metres,0));});
+  const dailyTotals=daily.map(distances=>distances.reduce((sum,n)=>sum+n,0));
+  const max=Math.max(...dailyTotals,1);
+  const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  $('#week-chart').innerHTML=daily.map((distances,i)=>`<div class="chart-day" role="img" aria-label="${days[i]}: ${loaded?`Karolis ${km(distances[0])} kilometres, Lorenas ${km(distances[1])} kilometres`:'data unavailable'}"><span class="chart-value">${loaded?km(dailyTotals[i]):'—'}</span><div class="bar-well" aria-hidden="true"><span class="bar-karolis" style="height:${loaded?distances[0]/max*100:0}%"></span><span class="bar-lorenas" style="height:${loaded?distances[1]/max*100:0}%"></span></div><small aria-hidden="true">${days[i].slice(0,3)}</small></div>`).join('');
+  $('#combined').innerHTML=`${loaded?km(dailyTotals.reduce((a,b)=>a+b,0)):'—'} <small>KM</small>`;
+  $('#chart-note').textContent=loaded?'This week':'Waiting for data';
   $('#run-rows').innerHTML=valid.slice(0,20).map(r=>`<tr><td><span class="table-initial">${escapeHtml(r.runner[0])}</span><strong>${escapeHtml(r.runner)}</strong></td><td>${escapeHtml(fmtDate(r.day))}</td><td><strong>${km(r.metres)} km</strong></td><td>${r.movingTime ? escapeHtml(r.movingTime) : 'Not available'}</td></tr>`).join('');
   $('#empty-state').hidden=loaded && valid.length>0; $('#activity-count').textContent=loaded?`${valid.length} RECORDED RUN${valid.length===1?'':'S'}`:'NO DATA LOADED';
-  if(!valid.length){$('#empty-state strong').textContent=loaded?'No runs in this snapshot.':'Your runs will live here.';$('#empty-state span:last-child').textContent=loaded?'Only records saved by the bot are shown.':'Connect real recorded data to see your activity.';}
+  if(!valid.length){$('#empty-state strong').textContent=loaded?'No runs recorded yet.':'Your runs will live here.';$('#empty-state span:last-child').textContent=loaded?'Only records saved by the bot are shown.':'Connect real recorded data to see your activity.';}
 }
 updateWeek();
 render([],false);
 setInterval(()=>{const previous=weekStart;updateWeek();if(previous!==weekStart)render(currentRows || [],currentRows !== null)},60000);
-$('#data-file').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{if(file.size>2_000_000)throw Error('The file is too large.');const rows=JSON.parse(await file.text());if(!validRows(rows))throw Error('Expected a JSON array of recorded runs.');currentRows=rows;render(rows,true);$('#source-title').textContent='Recorded data loaded';$('#source-detail').textContent='Local snapshot only — not automatically updated.';$('#footer-source').textContent='LOCAL SNAPSHOT / NOT LIVE';$('#signal').classList.add('loaded')}catch(error){currentRows=null;render([],false);$('#source-title').textContent='Could not read the file';$('#source-detail').textContent=error.message;$('#footer-source').textContent='NO DATA CONNECTED';$('#signal').classList.remove('loaded');}finally{event.target.value=''}});
 
 // A remembered key is accessible to scripts on this GitHub Pages origin, so
 // it is only persisted after successful sign-in and can be removed by sign-out.
@@ -47,12 +50,16 @@ function saveKey(value) {try {window.localStorage.setItem(storageKey,value); ret
 function forgetKey() {try {window.localStorage.removeItem(storageKey)} catch { /* Storage may be disabled. */ }}
 function disconnectedState(message) {
   currentRows=null;render([],false);
+  $('#source-strip').hidden=false;
+  $('#connection-label').textContent='Connect';
+  $('#connection-status').textContent='';
   $('#source-title').textContent='Live data not connected';
   $('#source-detail').textContent=message;
   $('#footer-source').textContent='NO DATA CONNECTED';
   $('#signal').classList.remove('loaded');
   $('#connect-form').hidden=false;
   $('#disconnect').hidden=true;
+  $('#retry').hidden=true;
 }
 try {
   const configured = typeof window !== 'undefined' ? window.RUN_OR_PAY_API_URL : '';
@@ -68,35 +75,50 @@ async function refreshLive() {
   if (!endpoint || !accessKey || refreshing) return;
   refreshing = true;
   const requestGeneration = generation;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(),15000) : null;
   try {
-    const response = await fetch(endpoint,{headers:{Authorization:`Bearer ${accessKey}`},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)});
+    const response = await fetch(endpoint,{headers:{Authorization:`Bearer ${accessKey}`},cache:'no-store',redirect:'error',...(controller ? {signal:controller.signal} : {})});
     if (requestGeneration !== generation) return;
     if (response.status === 401) {accessKey='';forgetKey();throw Error('Access key not accepted.');}
     if (!response.ok) throw Error('Could not reach the dashboard data.');
     const body = await response.json();
     if (requestGeneration !== generation) return;
     if (!validRows(body.runs) || body.truncated !== false) throw Error('Data is incomplete or invalid.');
-    currentRows=body.runs; render(currentRows,true);
+    if (currentRows === null || JSON.stringify(currentRows) !== JSON.stringify(body.runs)) {
+      currentRows=body.runs;
+      render(currentRows,true);
+    }
     $('#source-title').textContent='Connected';
+    $('#connection-label').textContent='Connected';
     $('#source-detail').textContent='Refreshes every minute. Totals are runs recorded by the bot.';
-    $('#footer-source').textContent='LIVE / RECORDED RUNS';
+    const updated = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}).format(new Date());
+    $('#footer-source').textContent=`Updated ${updated} · London time`;
     $('#signal').classList.add('loaded');
     const saved = rememberAfterSuccess ? saveKey(accessKey) : false;
-    if (rememberAfterSuccess && !saved) $('#source-detail').textContent='Connected. Browser storage is unavailable, so you may need to sign in again.';
+    $('#connection-status').textContent=rememberAfterSuccess && !saved ? 'Connected · this browser cannot remember your sign-in' : `Connected · updated ${updated} (London time)`;
+    if (!$('#source-strip').hidden) $('#connection-settings').open=rememberAfterSuccess && !saved;
+    $('#source-strip').hidden=true;
     $('#connect-form').hidden=true;
     $('#disconnect').hidden=false;
+    $('#retry').hidden=true;
   } catch(error) {
     if (requestGeneration !== generation) return;
     currentRows=null;render([],false);
+    $('#source-strip').hidden=false;
+    $('#connection-label').textContent='Connection unavailable';
+    $('#connection-status').textContent='';
     $('#source-title').textContent='Connection unavailable';
-    $('#source-detail').textContent=error.message;
+    $('#source-detail').textContent=error.message === 'Access key not accepted.' ? 'Access key not accepted. Check it and try again.' : error.message === 'Data is incomplete or invalid.' ? 'Run data is incomplete or invalid. Totals cannot be displayed safely.' : 'Could not update data. Check your connection; we will try again automatically.';
     $('#footer-source').textContent='NO DATA CONNECTED';
     $('#signal').classList.remove('loaded');
+    $('#retry').hidden=!accessKey;
     if (!accessKey) {$('#connect-form').hidden=false;$('#disconnect').hidden=true;}
-  } finally {refreshing=false;if(requestGeneration !== generation && accessKey) refreshLive();}
+  } finally {if (timeout !== null) clearTimeout(timeout);refreshing=false;if(requestGeneration !== generation && accessKey) refreshLive();}
 }
 if (endpoint) {
   $('#connect-form').addEventListener('submit',event=>{event.preventDefault();generation++;accessKey=$('#access-key').value;rememberAfterSuccess=$('#remember-device').checked;forgetKey();$('#access-key').value='';refreshLive();});
+  $('#retry').addEventListener('click',()=>{generation++;refreshLive();});
   $('#disconnect').addEventListener('click',()=>{generation++;accessKey='';forgetKey();disconnectedState('Sign in to see runs recorded by the bot.');});
   const remembered = storedKey();
   if (remembered) {accessKey=remembered;rememberAfterSuccess=true;$('#disconnect').hidden=false;refreshLive();}

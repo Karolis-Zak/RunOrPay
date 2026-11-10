@@ -70,7 +70,13 @@ install -m 644 "$work/schema.sql" "$base/schema.sql"
 systemctl --user daemon-reload
 systemctl --user start run-or-pay.service
 systemctl --user is-active --quiet run-or-pay.service
-curl -fsS http://127.0.0.1:8787/health >/dev/null
+# systemd's active state can precede the Node listener becoming ready.
+ready=0
+for attempt in {1..30}; do
+  if curl -fsS --max-time 2 http://127.0.0.1:8787/health >/dev/null 2>&1; then ready=1; break; fi
+  sleep 1
+done
+[[ $ready == 1 ]] || { echo 'Challenge service did not become healthy within 30 seconds.' >&2; exit 1; }
 systemctl --user start run-or-pay-whatsapp.service run-or-pay-strava.timer
 paused=0
 
