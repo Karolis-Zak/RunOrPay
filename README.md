@@ -16,7 +16,7 @@ Use Node.js 24 or later with SQLite support. Run `npm test` from the repository 
 
 The dashboard polls every minute while connected. It can remember the shared read key in browser local storage only when the user selects that option. Other scripts hosted on the same origin can access that key; use a trusted device and sign out to remove it. A shared key is not a personal account and should be rotated if exposed.
 
-The local `dashboard/stats.html` page compares recorded distance, run count, longest and average run distance, best recorded week and whole-run moving pace. Individual cards also show days with runs, moving time and speed. It uses the existing dashboard endpoint and its current 2,000-record limit, and shows best efforts as unavailable because the existing records do not include within-run splits. The source sync and dashboard fetch are separate: changing the page refresh interval does not make the Strava watcher run more often. If "keep me signed in" is off, switching pages requires the access key again.
+The local `dashboard/stats.html` page compares recorded distance, run count, longest and average run distance, best recorded week and whole-run moving pace. Individual cards also show days with runs, moving time and speed. It uses the existing dashboard endpoint and its current 2,000-record limit. Best efforts are not shown because existing records do not include within-run timing data. The source sync and dashboard fetch are separate: changing the page refresh interval does not make the Strava watcher run more often. If "keep me signed in" is off, switching pages requires the access key again.
 
 ## Deployment and operations
 

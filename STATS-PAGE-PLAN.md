@@ -5,7 +5,7 @@ Research and implementation plan, 12 November 2026, with local progress below. T
 ## Implementation progress
 
 - [x] Local first version of `dashboard/stats.html`: recorded distance and runs, days with runs, average run distance, longest run, best recorded London week, total and longest moving time, and weighted whole-run average pace and speed for each runner, with side-by-side comparisons where meaningful.
-- [x] Half-mile, mile and 5K remain unavailable; no effort or segment is inferred from a whole-run average. Source coverage and rounded precision are disclosed.
+- [x] The half-mile, mile and 5K placeholder section is removed until there is a reliable source and calculation. No effort or segment is inferred from a whole-run average. Source coverage and rounded precision are disclosed.
 - [x] The new page uses the existing authenticated read endpoint and stored dashboard key, validates data, rejects truncated results, retries cautiously after HTTP 429 and performs at most one automatic request per minute while visible. It adds no Strava watcher checks.
 - [x] Automated coverage for weighted calculations, missing/invalid durations, two runners, protected endpoint integration, incomplete data, expired credentials and 429 backoff.
 - [x] Both pages now use matching navigation; comparisons avoid declaring a pace winner from approximate whole-run averages and indicate ties at displayed precision. Connection indicators no longer rely on the newer CSS `:has()` selector.
@@ -152,6 +152,8 @@ Current flow: profile watcher → protected `/ingest/:runner` → SQLite activit
 - [ ] **Phase 5 — staged rollout:** review Git diff and secrets; run full checks; obtain required separate permissions for commit, push and deployment. Back up the VM, deploy backend in a compatible staged order, run authenticated and unauthenticated smoke checks, verify bot/queue continuity and rollback, then deploy the static frontend. GitHub Pages production push is a deployment; server changes are separate. No deployment is authorised by this plan.
 
 ## 10. Decisions before implementation
+
+The user records with the Strava app; their friend records with a Garmin device. Exact device models, source permissions, automatic export capabilities and costs remain unverified.
 
 1. How does each runner record and sync runs (phone OS, watch and source app), and is automatic access to distance/time samples available with both users' consent and without extra cost?
 2. Is the intended history all previously recorded runs, or from a specified start date? An honest answer depends on recoverable source data.
