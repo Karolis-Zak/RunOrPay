@@ -31,8 +31,17 @@ test('stats page renders valid records and does not invent best efforts',async()
   await settle();
   assert.match(elements['#runner-stats'].innerHTML,/3 km/);
   assert.match(elements['#runner-stats'].innerHTML,/5:00 \/km/);
-  assert.match(elements['#stats-status'].textContent,/Complete history is not verified/);
+  assert.equal(elements['#stats-status'].hidden,true);
+  assert.doesNotMatch(elements['#runner-stats'].innerHTML,/of \d+ runs have usable values/);
   assert.doesNotMatch(elements['#comparison'].innerHTML,/fastest mile/i);
+});
+
+test('missing timing data is disclosed without showing the usable-runs count',async()=>{
+  const rows=[{runner:'Karolis',metres:3000,started_at:'2026-11-09T12:00:00Z',moving_time:null}];
+  const {elements}=setup(async()=>({ok:true,status:200,json:async()=>({runs:rows,truncated:false})}),'key');
+  await settle();
+  assert.match(elements['#runner-stats'].innerHTML,/Some runs lack usable data and are excluded/);
+  assert.doesNotMatch(elements['#runner-stats'].innerHTML,/of \d+ runs have usable values/);
 });
 
 test('comparison does not declare a faster runner when displayed paces are equal',async()=>{
@@ -60,6 +69,7 @@ test('stats page rejects truncated or malformed responses rather than showing pa
     const {elements}=setup(async()=>({ok:true,status:200,json:async()=>body}),'key');
     await settle();
     assert.match(elements['#stats-status'].textContent,/incomplete/);
+    assert.equal(elements['#stats-status'].hidden,false);
     assert.equal(elements['#runner-stats'].innerHTML,'');
   }
 });

@@ -36,11 +36,11 @@ function render(rows) {
     compare('Average run distance',data.map(r=>r.averageRunMetres),n=>`${formatKm(n)} km`,false,'Recorded distance divided by recorded runs'),
     compare('Best recorded week',data.map(r=>r.bestWeek?.metres ?? null),n=>`${formatKm(n)} km`,false,'Each runner’s best Monday–Sunday total')
   ].join('');
-  $('#runner-stats').innerHTML=data.map(r=>`<article class="stats-runner"><h3><span>${r.name[0]}</span>${r.name}</h3><dl><div><dt>Recorded runs</dt><dd>${r.count}</dd></div><div><dt>Days with a recorded run</dt><dd>${r.activeDays}</dd></div><div><dt>Recorded distance</dt><dd>${r.count?formatKm(r.metres)+' km':'—'}</dd></div><div><dt>Average run distance</dt><dd>${r.averageRunMetres==null?'—':formatKm(r.averageRunMetres)+' km'}</dd></div><div><dt>Longest run</dt><dd>${r.longest?formatKm(r.longest.metres)+' km · '+date(r.longest.started_at):'—'}</dd></div><div><dt>Best recorded week</dt><dd>${r.bestWeek?formatKm(r.bestWeek.metres)+' km · week of '+date(r.bestWeek.start+'T12:00:00Z'):'—'}</dd></div><div><dt>Total moving time</dt><dd>${r.timedCount?formatDuration(r.movingSeconds):'—'}</dd></div><div><dt>Longest moving time</dt><dd>${formatDuration(r.longestMovingSeconds)}</dd></div><div><dt>Average moving pace</dt><dd>${r.secondsPerKm==null?'—':'≈ '+formatPace(r.secondsPerKm)}</dd></div><div><dt>Average moving speed</dt><dd>${r.secondsPerKm==null?'—':'≈ '+formatSpeed(r.secondsPerKm)}</dd></div></dl><small>Pace and speed are calculated from recorded distance and moving time, including walking. ${r.timedCount} of ${r.count} runs have usable values.</small></article>`).join('');
+  $('#runner-stats').innerHTML=data.map(r=>`<article class="stats-runner"><h3><span>${r.name[0]}</span>${r.name}</h3><dl><div><dt>Recorded runs</dt><dd>${r.count}</dd></div><div><dt>Days with a recorded run</dt><dd>${r.activeDays}</dd></div><div><dt>Recorded distance</dt><dd>${r.count?formatKm(r.metres)+' km':'—'}</dd></div><div><dt>Average run distance</dt><dd>${r.averageRunMetres==null?'—':formatKm(r.averageRunMetres)+' km'}</dd></div><div><dt>Longest run</dt><dd>${r.longest?formatKm(r.longest.metres)+' km · '+date(r.longest.started_at):'—'}</dd></div><div><dt>Best recorded week</dt><dd>${r.bestWeek?formatKm(r.bestWeek.metres)+' km · week of '+date(r.bestWeek.start+'T12:00:00Z'):'—'}</dd></div><div><dt>Total moving time</dt><dd>${r.timedCount?formatDuration(r.movingSeconds):'—'}</dd></div><div><dt>Longest moving time</dt><dd>${formatDuration(r.longestMovingSeconds)}</dd></div><div><dt>Average moving pace</dt><dd>${r.secondsPerKm==null?'—':'≈ '+formatPace(r.secondsPerKm)}</dd></div><div><dt>Average moving speed</dt><dd>${r.secondsPerKm==null?'—':'≈ '+formatSpeed(r.secondsPerKm)}</dd></div></dl><small>Pace and speed are calculated from recorded distance and moving time, including walking.${r.timedCount < r.count ? " Some runs lack usable data and are excluded." : ""}</small></article>`).join('');
 }
 function reset(message) {
   $('#comparison').innerHTML=''; $('#runner-stats').innerHTML='';
-  $('#stats-status').textContent=message;
+  $('#stats-status').textContent=message; $('#stats-status').hidden=false;
   $('#connection-label').textContent='Connect'; $('#connection-settings').classList.remove('connected'); $('#source-strip').hidden=false;
   $('#source-title').textContent='Not connected'; $('#source-detail').textContent=message;
   $('#connect-form').hidden=false; $('#disconnect').hidden=true; $('#retry').hidden=true;
@@ -63,7 +63,7 @@ async function refresh(force=false) {
     if(!body||!validRuns(body.runs)||body.truncated!==false)throw new Error('Run data is incomplete. Stats are unavailable.');
     render(body.runs);
     const updated=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date());
-    $('#stats-status').textContent=`${body.runs.length} recorded runs · Updated ${updated} London time · Complete history is not verified`;
+    $('#stats-status').hidden=true;
     const saved=remember?store.set(key):false;
     $('#connection-status').textContent=remember&&!saved?'Connected · this browser cannot remember your sign-in':`Connected · updated ${updated}`;
     $('#connection-label').textContent='Connected'; $('#connection-settings').classList.add('connected'); $('#signal').classList.add('loaded');
@@ -72,7 +72,7 @@ async function refresh(force=false) {
     $('#footer-source').textContent=`Updated ${updated} · London time`;
   } catch(error) {
     if(requestGeneration!==generation)return;
-    $('#comparison').innerHTML=''; $('#runner-stats').innerHTML=''; $('#stats-status').textContent=error.message;
+    $('#comparison').innerHTML=''; $('#runner-stats').innerHTML=''; $('#stats-status').textContent=error.message; $('#stats-status').hidden=false;
     $('#source-strip').hidden=false; $('#source-title').textContent='Connection unavailable'; $('#source-detail').textContent=error.message;
     $('#connection-label').textContent='Connection unavailable'; $('#connection-settings').classList.remove('connected'); $('#connection-status').textContent=''; $('#signal').classList.remove('loaded');
     $('#footer-source').textContent='NOT CONNECTED'; $('#retry').hidden=!key;
