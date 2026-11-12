@@ -18,13 +18,13 @@ function updateWeek() {
   $('#week-number').textContent = `${new Date(today+'T12:00:00Z').getUTCFullYear()}`;
 }
 function render(rows, loaded) {
-  const valid = loaded ? rows.map((r)=>({runner:r.runner, day:londonDay(r.started_at), metres:r.metres, movingTime:r.moving_time})).sort((a,b)=>b.day.localeCompare(a.day)) : [];
+  const valid = loaded ? rows.map((r)=>({runner:r.runner, day:londonDay(r.started_at), startedAt:r.started_at, metres:r.metres, movingTime:r.moving_time})).sort((a,b)=>Date.parse(b.startedAt)-Date.parse(a.startedAt)) : [];
   const week = valid.filter(r=>r.day>=weekStart && r.day<=weekEnd);
   const totals = runners.map(r=>({...r,metres:week.filter(x=>x.runner===r.name).reduce((sum,x)=>sum+x.metres,0)}));
   const comparison = totals[0].metres * totals[1].goal - totals[1].metres * totals[0].goal;
   $('#weekly-summary').textContent = !loaded ? 'Progress towards each personal goal' : comparison === 0 ? 'Level on weekly goal progress' : `${comparison > 0 ? totals[0].name : totals[1].name} leads on weekly goal progress`;
   $('#runner-cards').innerHTML = totals.map((r,i)=>{const pct=loaded ? percent(r.metres,r.goal) : null, left=loaded?Math.max(0,r.goal-r.metres):null;return `<article class="runner-card ${i?'runner-two':'runner-one'}"><div class="card-top"><span class="card-index">ATHLETE / ${r.number}</span><span class="card-goal">WEEKLY GOAL <strong>${km(r.goal)} KM</strong></span></div><div class="runner-name"><span class="runner-avatar">${r.name[0]}</span><div><small>ON THE BOARD</small><h3>${r.name}</h3></div></div><div class="metric"><strong class="${loaded?'':'metric-empty'}">${loaded?km(r.metres):'Not connected'}</strong><span> / ${km(r.goal)} <b>KM</b></span></div><div class="track" role="progressbar" aria-label="${r.name} weekly goal" aria-valuemin="0" aria-valuemax="100" ${loaded?`aria-valuenow="${Math.min(pct,100)}"`:'aria-valuetext="Data unavailable"'}><span style="width:${loaded?Math.min(pct,100):0}%"></span></div><div class="card-bottom"><span>${loaded?pct+'% COMPLETE':'AWAITING DATA'}</span><strong>${loaded?km(left)+' KM LEFT':'— KM LEFT'}</strong></div></article>`}).join('');
-  if (!loaded) $('#leaderboard').innerHTML='<div class="empty-leader"><div><strong>No data connected</strong><small>Connect above to see overall distance.</small></div></div>';
+  if (!loaded) $('#leaderboard').innerHTML='<div class="empty-leader"><div><strong>No data connected</strong><small>Connect above to see lifetime distance.</small></div></div>';
   else {const ranked=runners.map(r=>({...r,metres:valid.filter(x=>x.runner===r.name).reduce((sum,x)=>sum+x.metres,0)})).sort((a,b)=>b.metres-a.metres), tie=ranked[0].metres===ranked[1].metres; $('#leaderboard').innerHTML=ranked.map((r,i)=>`<div class="rank"><span class="rank-number">${tie?'—':String(i+1).padStart(2,'0')}</span><span class="rank-name"><strong>${r.name}</strong></span><strong class="rank-score">${km(r.metres)}<small> km</small></strong></div>`).join('');}
   const daily=Array.from({length:7},(_,i)=>{const date=dayShift(weekStart,i);return runners.map(r=>week.filter(x=>x.day===date && x.runner===r.name).reduce((sum,x)=>sum+x.metres,0));});
   const dailyTotals=daily.map(distances=>distances.reduce((sum,n)=>sum+n,0));
@@ -33,7 +33,7 @@ function render(rows, loaded) {
   $('#week-chart').innerHTML=daily.map((distances,i)=>`<div class="chart-day" role="img" aria-label="${days[i]}: ${loaded?`Karolis ${km(distances[0])} kilometres, Lorenas ${km(distances[1])} kilometres`:'data unavailable'}"><span class="chart-value">${loaded?km(dailyTotals[i]):'—'}</span><div class="bar-well" aria-hidden="true"><span class="bar-karolis" style="height:${loaded?distances[0]/max*100:0}%"></span><span class="bar-lorenas" style="height:${loaded?distances[1]/max*100:0}%"></span></div><small aria-hidden="true">${days[i].slice(0,3)}</small></div>`).join('');
   $('#combined').innerHTML=`${loaded?km(dailyTotals.reduce((a,b)=>a+b,0)):'—'} <small>KM</small>`;
   $('#chart-note').textContent=loaded?'This week':'Waiting for data';
-  $('#run-rows').innerHTML=valid.slice(0,20).map(r=>`<tr><td><span class="table-initial">${escapeHtml(r.runner[0])}</span><strong>${escapeHtml(r.runner)}</strong></td><td>${escapeHtml(fmtDate(r.day))}</td><td><strong>${km(r.metres)} km</strong></td><td>${r.movingTime ? escapeHtml(r.movingTime) : 'Not available'}</td></tr>`).join('');
+  $('#run-rows').innerHTML=valid.slice(0,10).map(r=>`<tr><td><span class="table-initial">${escapeHtml(r.runner[0])}</span><strong>${escapeHtml(r.runner)}</strong></td><td>${escapeHtml(fmtDate(r.day))}</td><td><strong>${km(r.metres)} km</strong></td><td>${r.movingTime ? escapeHtml(r.movingTime) : 'Not available'}</td></tr>`).join('');
   $('#empty-state').hidden=loaded && valid.length>0; $('#activity-count').textContent=loaded?`${valid.length} RECORDED RUN${valid.length===1?'':'S'}`:'NO DATA LOADED';
   if(!valid.length){$('#empty-state strong').textContent=loaded?'No runs recorded yet.':'Your runs will live here.';$('#empty-state span:last-child').textContent=loaded?'Only records saved by the bot are shown.':'Connect real recorded data to see your activity.';}
 }
@@ -52,6 +52,7 @@ function disconnectedState(message) {
   currentRows=null;render([],false);
   $('#source-strip').hidden=false;
   $('#connection-label').textContent='Connect';
+  $('#connection-settings').classList.remove('connected');
   $('#connection-status').textContent='';
   $('#source-title').textContent='Live data not connected';
   $('#source-detail').textContent=message;
@@ -91,6 +92,7 @@ async function refreshLive() {
     }
     $('#source-title').textContent='Connected';
     $('#connection-label').textContent='Connected';
+    $('#connection-settings').classList.add('connected');
     $('#source-detail').textContent='Refreshes every minute. Totals are runs recorded by the bot.';
     const updated = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}).format(new Date());
     $('#footer-source').textContent=`Updated ${updated} · London time`;
@@ -107,6 +109,7 @@ async function refreshLive() {
     currentRows=null;render([],false);
     $('#source-strip').hidden=false;
     $('#connection-label').textContent='Connection unavailable';
+    $('#connection-settings').classList.remove('connected');
     $('#connection-status').textContent='';
     $('#source-title').textContent='Connection unavailable';
     $('#source-detail').textContent=error.message === 'Access key not accepted.' ? 'Access key not accepted. Check it and try again.' : error.message === 'Data is incomplete or invalid.' ? 'Run data is incomplete or invalid. Totals cannot be displayed safely.' : 'Could not update data. Check your connection; we will try again automatically.';

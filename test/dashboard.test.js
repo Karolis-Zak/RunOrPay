@@ -39,6 +39,16 @@ test('leaderboard sums recorded distance across weeks while weekly progress stay
   assert.doesNotMatch(elements['#run-rows'].innerHTML,/table-arrow/);
 });
 
+test('recent runs shows ten newest while lifetime distance includes older runs', async () => {
+  const {elements,upload}=setup();
+  const rows=Array.from({length:11},(_,i)=>({runner:'Karolis',started_at:`2026-11-${String(i+1).padStart(2,'0')}T12:00:00Z`,metres:1000}));
+  await upload(JSON.stringify(rows));
+  assert.equal((elements['#run-rows'].innerHTML.match(/<tr>/g)||[]).length,10);
+  assert.doesNotMatch(elements['#run-rows'].innerHTML,/>1 Nov</);
+  assert.match(elements['#leaderboard'].innerHTML,/11<small> km/);
+  assert.equal(elements['#activity-count'].textContent,'11 RECORDED RUNS');
+});
+
 test('weekly goals handle zero, completion and distance above target', async () => {
   const {elements,upload}=setup();
   await upload(JSON.stringify([{runner:'Karolis',started_at:'2026-11-09T12:00:00Z',metres:12000},{runner:'Lorenas',started_at:'2026-11-09T12:00:00Z',metres:0}]));
